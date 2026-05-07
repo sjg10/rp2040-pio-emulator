@@ -20,6 +20,7 @@ from pioemu.instruction import (
     PullInstruction,
     PushInstruction,
     WaitInstruction,
+    IrqInstruction
 )
 
 
@@ -62,6 +63,8 @@ class InstructionDecoder:
                 decoded_instruction = self._decode_push(opcode)
             case 4 if opcode & 0x0080 != 0:
                 decoded_instruction = self._decode_pull(opcode)
+            case 6:
+                decoded_instruction = self._decode_irq(opcode)
 
             # TODO: Add support for MOV, IRQ and SET instructions
             case _:
@@ -118,22 +121,26 @@ class InstructionDecoder:
 
     def _decode_pull(self, opcode: int) -> Optional[PullInstruction]:
         delay_cycles, side_set_value = self._extract_delay_cycles_and_side_set(opcode)
-
         return PullInstruction(
             opcode=opcode,
             if_empty=bool(opcode & 0x0040),
             block=bool(opcode & 0x0020),
+            get=(opcode & 0x0010),
+            get_idxI=(opcode & 0x0008),
+            get_index=(opcode & 0x0007),
             delay_cycles=delay_cycles,
             side_set_value=side_set_value,
         )
 
     def _decode_push(self, opcode: int) -> Optional[PushInstruction]:
         delay_cycles, side_set_value = self._extract_delay_cycles_and_side_set(opcode)
-
         return PushInstruction(
             opcode=opcode,
             if_full=bool(opcode & 0x0040),
             block=bool(opcode & 0x0020),
+            put=(opcode & 0x0010),
+            put_idxI=(opcode & 0x0008),
+            put_index=(opcode & 0x0007),
             delay_cycles=delay_cycles,
             side_set_value=side_set_value,
         )
@@ -149,7 +156,27 @@ class InstructionDecoder:
             delay_cycles=delay_cycles,
             side_set_value=side_set_value,
         )
+    
+    def _decode_irq(self, opcode: int) -> Optional[IrqInstruction
+    ]:
+        index = opcode & 0x7
+        index_mode = (opcode >> 3) & 0x3
+        wait = (opcode >> 5) & 0x1
+        clr = (opcode >> 6) & 0x1
 
+        delay_cycles, side_set_value = self._extract_delay_cycles_and_side_set(opcode)
+
+        return IrqInstruction(
+            opcode=opcode,
+            index=index,
+            index_mode=index_mode,
+            wait=wait,
+            clr=clr,
+            delay_cycles=delay_cycles,
+            side_set_value=side_set_value,
+        )
+
+    
     def _extract_delay_cycles_and_side_set(self, opcode: int):
         delay_cycles_and_side_set = (opcode >> 8) & 0x1F
         delay_cycles = delay_cycles_and_side_set & self.delay_cycles_mask

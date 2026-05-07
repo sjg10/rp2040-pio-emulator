@@ -17,6 +17,19 @@ from ..shift_register import ShiftRegister
 from ..state import State
 
 
+
+def rx_get(state: State, idxI : bool, index : int) -> State | None:
+    new_osr = 0
+    if not idxI:
+        index = state.y_register
+    new_osr = state.receive_fifo[index]
+    print("Read ", index, state.receive_fifo[index], state.output_shift_register.contents, new_osr)
+    return replace(
+        state,
+        output_shift_register=ShiftRegister(new_osr, 0),
+    )
+
+
 def pull_blocking(state: State) -> State | None:
     if transmit_fifo_empty(state):
         return None  # Represents a stall

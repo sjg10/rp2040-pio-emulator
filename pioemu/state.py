@@ -24,6 +24,7 @@ class State:
     program_counter: int = 0
     pin_directions: int = 0
     pin_values: int = 0
+    irq_reg: list = field(default_factory=lambda: list(0 for x in range(8)))
     transmit_fifo: Deque[int] = field(default_factory=deque)
     receive_fifo: Deque[int] = field(default_factory=deque)
     input_shift_register: ShiftRegister = field(

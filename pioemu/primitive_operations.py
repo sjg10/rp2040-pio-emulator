@@ -24,6 +24,8 @@ def read_from_isr(state: State) -> int:
 
     return state.input_shift_register.contents
 
+def read_from_irq(state: State, irq : int) -> int:
+    return state.irq_reg[irq]
 
 def shift_into_isr(
     data_supplier: Callable[[State], int],
@@ -178,3 +180,25 @@ def stall_unless_predicate_met(
         return state
 
     return None  # Represents a stall
+
+def wait_on_irq(
+        state: State,
+        index: int,
+        polarity: bool
+) -> bool:
+    if state.irq_reg[index] == polarity:
+        state.irq_reg[index] = 0
+        return True
+    else:
+        return False
+
+def clear_set_irq(
+    state: State,
+    clear: bool,
+    idx: int
+) -> State | None:
+    if clear:
+        state.irq_reg[idx] = 0
+    else:
+        state.irq_reg[idx] = 1
+    return state

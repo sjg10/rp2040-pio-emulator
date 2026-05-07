@@ -37,16 +37,20 @@ from .instruction import (
     PullInstruction,
     PushInstruction,
     WaitInstruction,
+    IrqInstruction,
 )
 from .instructions.pull import (
+    rx_get,
     pull_blocking,
     pull_nonblocking,
 )
 from .instructions.push import (
+    rx_put,
     push_blocking,
     push_nonblocking,
 )
 from .primitive_operations import (
+    read_from_irq,
     read_from_isr,
     shift_into_isr,
     read_from_osr,
@@ -64,6 +68,8 @@ from .primitive_operations import (
     write_to_x,
     write_to_y,
     write_to_null,
+    clear_set_irq,
+    wait_on_irq
 )
 from .shift_register import ShiftRegister
 from .state import State
@@ -82,6 +88,7 @@ class InstructionDecoder:
         out_base: int,
         out_count: int,
         jmp_pin: int,
+        status_irq_source: int
     ):
         """
         Parameters
@@ -142,7 +149,7 @@ class InstructionDecoder:
             read_from_y,
             supplies_value(0),
             None,
-            None,
+            partial(read_from_irq, irq=status_irq_source),
             read_from_isr,
             read_from_osr,
         ]
@@ -211,6 +218,8 @@ class InstructionDecoder:
                 emulation = self._decode_push(instruction)
             case WaitInstruction():
                 emulation = self._decode_wait(instruction)
+            case IrqInstruction():
+                emulation = self._decode_irq(instruction)
             case _:
                 emulation = None
 
@@ -334,29 +343,50 @@ class InstructionDecoder:
 
     @staticmethod
     def _decode_pull(instruction: PullInstruction) -> Emulation:
-        condition = output_shift_register_empty if instruction.if_empty else always
+        if instruction.get:
+            
+            return Emulation(
+                always,
+                partial(rx_get, idxI=instruction.get_idxI, index=instruction.get_index),
+                ProgramCounterAdvance.ALWAYS,
+                instruction,
+            )
+        else:
 
-        return Emulation(
-            condition,
-            pull_blocking if instruction.block else pull_nonblocking,
-            ProgramCounterAdvance.ALWAYS,
-            instruction,
-        )
+            condition = output_shift_register_empty if instruction.if_empty else always
+
+            return Emulation(
+                condition,
+                pull_blocking if instruction.block else pull_nonblocking,
+                ProgramCounterAdvance.ALWAYS,
+                instruction,
+            )
 
     @staticmethod
     def _decode_push(instruction: PushInstruction) -> Emulation:
-        condition = input_shift_register_full if instruction.if_full else always
+        if instruction.put:
+            
+            return Emulation(
+                always,
+                partial(rx_put, idxI=instruction.put_idxI, index=instruction.put_index),
+                ProgramCounterAdvance.ALWAYS,
+                instruction,
+            )
+        else:
+            condition = input_shift_register_full if instruction.if_full else always
 
-        return Emulation(
-            condition,
-            push_blocking if instruction.block else push_nonblocking,
-            ProgramCounterAdvance.ALWAYS,
-            instruction,
-        )
+            return Emulation(
+                condition,
+                push_blocking if instruction.block else push_nonblocking,
+                ProgramCounterAdvance.ALWAYS,
+                instruction,
+            )
 
     @staticmethod
     def _decode_wait(instruction: WaitInstruction) -> Emulation:
-        if instruction.polarity:
+        if instruction.source == 2:
+            condition = partial(wait_on_irq, index=instruction.index, polarity=instruction.polarity)
+        elif instruction.polarity:
             condition = partial(gpio_high, instruction.index)
         else:
             condition = partial(gpio_low, instruction.index)
@@ -365,4 +395,12 @@ class InstructionDecoder:
             always,
             partial(stall_unless_predicate_met, condition),
             ProgramCounterAdvance.ALWAYS,
+        )
+    
+    @staticmethod
+    def _decode_irq(instruction: IrqInstruction) -> Emulation:
+        return Emulation(
+            always,
+            partial(clear_set_irq, clear=instruction.clr, idx=instruction.index),
+            ProgramCounterAdvance.WHEN_CONDITION_MET,
         )

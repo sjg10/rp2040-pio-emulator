@@ -24,6 +24,7 @@ from .instruction import (
     Instruction,
     JmpInstruction,
     OutInstruction,
+    IrqInstruction,
     ProgramCounterAdvance,
 )
 from .instruction_decoder import InstructionDecoder
@@ -50,6 +51,7 @@ def emulate(
     jmp_pin: int = 0,
     wrap_target: int = 0,
     wrap_top: int = 0,
+    status_irq_source: int = 0,
 ) -> Generator[Tuple[State, State], None, None]:
     """
     Create and return a generator for emulating the given PIO program.
@@ -131,7 +133,7 @@ def emulate(
     new_instruction_decoder = NewInstructionDecoder(side_set_count)
 
     old_instruction_decoder = InstructionDecoder(
-        shift_isr_method, shift_osr_method, out_base, out_count, jmp_pin
+        shift_isr_method, shift_osr_method, out_base, out_count, jmp_pin, status_irq_source
     )
 
     wrap_top = wrap_top or len(opcodes) - 1

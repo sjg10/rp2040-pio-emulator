@@ -53,12 +53,18 @@ class OutInstruction(Instruction):
 class PullInstruction(Instruction):
     if_empty: bool
     block: bool
+    get: bool
+    get_idxI: bool
+    get_index: int
 
 
 @dataclass(frozen=True, kw_only=True)
 class PushInstruction(Instruction):
     if_full: bool
     block: bool
+    put: bool
+    put_idxI: bool
+    put_index: int
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,6 +73,12 @@ class WaitInstruction(Instruction):
     index: int
     polarity: bool
 
+@dataclass(frozen=True, kw_only=True)
+class IrqInstruction(Instruction):
+    index: int  
+    index_mode: int # TODO: Use an enumeration instead of an integer?
+    clr: bool
+    wait: bool
 
 @dataclass(frozen=True)
 class Emulation:

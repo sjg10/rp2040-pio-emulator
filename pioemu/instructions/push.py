@@ -17,6 +17,18 @@ from pioemu.shift_register import ShiftRegister
 from pioemu.state import State
 from pioemu.conditions import receive_fifo_full
 
+def rx_put(state: State, idxI : bool, index : int) -> State | None:
+    updated_rx_fifo = state.receive_fifo.copy()
+    if not idxI:
+        index = state.y_register
+    while len(updated_rx_fifo) <= index:
+        updated_rx_fifo.append(0)
+    updated_rx_fifo[index] = state.input_shift_register.contents
+
+    return replace(
+        state,
+        receive_fifo=updated_rx_fifo,
+    )
 
 def push_blocking(state: State) -> State | None:
     if receive_fifo_full(state):
